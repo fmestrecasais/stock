@@ -13,10 +13,10 @@
 html{box-sizing:border-box}*,*::before,*::after{box-sizing:inherit}
 [hidden]{display:none!important}
 :root{
-  --paper:#ebede7; --surface:#f7f8f4; --sunk:#e4e7e0; --line:#ced3c9;
-  --ink:#182a36; --muted:#5c6763; --navy:#13293d;
-  --clay:#b0543a; --clay-soft:#f0ddd4; --clay-ink:#fdfcfa;
-  --lichen:#4f6749; --lichen-soft:#e2e9dd; --ochre:#8a6a1f; --ochre-soft:#f1e9d2;
+  --paper:#f2f3f1; --surface:#ffffff; --sunk:#eef0ec; --line:#e2e5de;
+  --ink:#1c2634; --muted:#626c68; --navy:#003478;
+  --clay:#9b6e51; --clay-soft:#efe6dd; --clay-ink:#ffffff;
+  --bad:#a8402e; --bad-soft:#f5e0da; --lichen:#4f6749; --lichen-soft:#e7ece1; --ochre:#876820; --ochre-soft:#f2ecd9;
   --card-paper:#ffffff; --card-ink:#111111;
   --body:"Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
   --display:var(--body);
@@ -24,16 +24,16 @@ html{box-sizing:border-box}*,*::before,*::after{box-sizing:inherit}
   --r:3px;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --paper:#0f171c; --surface:#15222a; --sunk:#111c22; --line:#2a3a40;
-  --ink:#e7eae3; --muted:#93a09a; --navy:#0b1a27;
-  --clay:#d07a5b; --clay-soft:#3a241c; --clay-ink:#14120f;
-  --lichen:#86a07c; --lichen-soft:#1e2a1f; --ochre:#c79a4a; --ochre-soft:#332a14;
+  --paper:#0e141a; --surface:#152028; --sunk:#111b22; --line:#28343d;
+  --ink:#e8eae6; --muted:#8f9a95; --navy:#2a5a92;
+  --clay:#b98a68; --clay-soft:#3a2c20; --clay-ink:#ffffff;
+  --bad:#d9705f; --bad-soft:#3a1f1a; --lichen:#86a07c; --lichen-soft:#1e2a1f; --ochre:#c79a4a; --ochre-soft:#332a14;
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --paper:#0f171c; --surface:#15222a; --sunk:#111c22; --line:#2a3a40;
-  --ink:#e7eae3; --muted:#93a09a; --navy:#0b1a27;
-  --clay:#d07a5b; --clay-soft:#3a241c; --clay-ink:#14120f;
-  --lichen:#86a07c; --lichen-soft:#1e2a1f; --ochre:#c79a4a; --ochre-soft:#332a14;
+  --paper:#0e141a; --surface:#152028; --sunk:#111b22; --line:#28343d;
+  --ink:#e8eae6; --muted:#8f9a95; --navy:#2a5a92;
+  --clay:#b98a68; --clay-soft:#3a2c20; --clay-ink:#ffffff;
+  --bad:#d9705f; --bad-soft:#3a1f1a; --lichen:#86a07c; --lichen-soft:#1e2a1f; --ochre:#c79a4a; --ochre-soft:#332a14;
   color-scheme:dark}
 
 body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
@@ -165,17 +165,35 @@ input.count-in{width:92px;text-align:right;font-family:var(--mono)}
 #login .btn.link{color:rgba(238,241,236,.72)}
 #login .btn.link:hover{color:#f4f6f3}
 @media (max-width:560px){.loginwrap{justify-content:center;padding:28px}}
+
+/* brand pass — manual FMC (azul Pantone 294 #003478, bronze Pantone 7525 #9b6e51) */
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn.primary:hover{filter:brightness(1.1);border-color:var(--navy)}
+.stat.alert b{color:var(--bad)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.delta.neg{color:var(--bad)}
+tr.flag td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.err{color:var(--bad)}
+.btn.danger:hover{color:var(--bad);border-color:var(--bad)}
+header.top h1{color:var(--navy)}
+.wordmark{font-weight:700;font-size:.95rem;line-height:1.1;letter-spacing:-.01em;margin-bottom:4px}
+.wordmark .fu{color:var(--navy)} .wordmark .mc{color:var(--clay)}
+.brandmark{font-size:1.05rem;font-weight:700;color:#fff;letter-spacing:-.01em}
+.brandmark .mc{color:var(--clay)}
+#login .err{color:#f0b7a6}
+.loginactions .btn.primary{background:#fff;color:var(--navy);border-color:#fff}
+.loginactions .btn.primary:hover{background:#eaeee9;filter:none}
 </style>
 </head>
 <body>
 
 <div id="login" class="loginwrap" hidden>
   <div class="loginpanel">
-    <div class="brandmark">Fundação Mestre Casais</div>
+    <div class="brandmark"><span>Fundação</span> <span class="mc">Mestre Casais</span></div>
     <h1 class="loginword">Armazém</h1>
-    <p class="loginlede">O registo do material da Fundação. É preciso iniciar sessão para entrar.</p>
+    <p class="loginlede">Acesso reservado.</p>
     <form id="loginForm" class="loginform" novalidate>
-      <div class="field"><label for="lemail">Email</label><input id="lemail" name="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="lemail">E-mail</label><input id="lemail" name="email" type="email" autocomplete="username" required></div>
       <div class="field"><label for="lpass">Palavra-passe</label><input id="lpass" name="pass" type="password" autocomplete="current-password" required></div>
       <div class="err" id="lerr"></div>
       <div class="loginactions">
@@ -189,7 +207,7 @@ input.count-in{width:92px;text-align:right;font-family:var(--mono)}
 <div class="wrap" id="app" hidden>
   <header class="top">
     <div>
-      <div class="label">Fundação Mestre Casais</div>
+      <div class="wordmark"><span class="fu">Fundação</span> <span class="mc">Mestre Casais</span></div>
       <h1>Armazém FMC</h1>
     </div>
     <div class="who" id="who"><span class="chip">A carregar…</span></div>
