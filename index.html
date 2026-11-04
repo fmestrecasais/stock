@@ -149,22 +149,16 @@ tr.flag td:first-child{box-shadow:inset 3px 0 0 var(--clay)}
 input.count-in{width:92px;text-align:right;font-family:var(--mono)}
 @media (max-width:520px){header.top h1{font-size:1.6rem}.row2{grid-template-columns:1fr}}
 
-/* login — the identity moment */
-.loginwrap{min-height:100dvh;display:flex;align-items:center;justify-content:flex-start;background:var(--navy);color:#eef1ec;padding:clamp(24px,8vw,96px)}
-.loginpanel{width:min(460px,100%);display:flex;flex-direction:column}
-.brandmark{font-size:.8rem;color:rgba(238,241,236,.6);font-weight:500}
-.loginword{font-family:var(--display);font-weight:700;font-size:clamp(3.2rem,11vw,5.2rem);line-height:.95;letter-spacing:-.03em;color:#f4f6f3;margin:8px 0 0}
-.loginlede{color:rgba(238,241,236,.72);margin:16px 0 32px;max-width:34ch;font-size:1.02rem;line-height:1.5}
+/* login — brand-consistent, light */
+.loginwrap{min-height:100dvh;display:flex;align-items:center;justify-content:center;background:var(--paper);color:var(--ink);padding:clamp(24px,6vw,64px)}
+.loginpanel{width:min(400px,100%);display:flex;flex-direction:column}
+.loginmark{padding-bottom:20px;margin-bottom:26px;border-bottom:2px solid var(--clay)}
+.loginword{font-family:var(--display);font-weight:700;font-size:clamp(2.5rem,9vw,3.4rem);line-height:1;letter-spacing:-.02em;color:var(--navy);margin:12px 0 0}
+.loginlede{color:var(--muted);margin:0 0 26px;font-size:.98rem}
 .loginform{display:flex;flex-direction:column;gap:16px}
-#login .field label{color:rgba(238,241,236,.7);font-size:.82rem}
-#login input{background:rgba(255,255,255,.06);border:1px solid rgba(238,241,236,.25);color:#f4f6f3}
-#login input:focus-visible{outline-color:var(--clay);border-color:rgba(238,241,236,.55)}
-#login .err{color:#f3b9a7}
+#login .field label{color:var(--muted);font-size:.82rem}
 .loginactions{display:flex;align-items:center;gap:8px;margin-top:4px}
-.loginactions .btn.primary{padding:11px 24px}
-#login .btn.link{color:rgba(238,241,236,.72)}
-#login .btn.link:hover{color:#f4f6f3}
-@media (max-width:560px){.loginwrap{justify-content:center;padding:28px}}
+@media (max-width:560px){.loginwrap{padding:28px}}
 
 /* brand pass — manual FMC (azul Pantone 294 #003478, bronze Pantone 7525 #9b6e51) */
 .btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -178,19 +172,19 @@ tr.flag td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
 header.top h1{color:var(--navy)}
 .wordmark{font-weight:700;font-size:.95rem;line-height:1.1;letter-spacing:-.01em;margin-bottom:4px}
 .wordmark .fu{color:var(--navy)} .wordmark .mc{color:var(--clay)}
-.brandmark{font-size:1.05rem;font-weight:700;color:#fff;letter-spacing:-.01em}
+.brandmark{font-size:1.15rem;font-weight:700;color:var(--navy);letter-spacing:-.01em}
 .brandmark .mc{color:var(--clay)}
-#login .err{color:#f0b7a6}
-.loginactions .btn.primary{background:#fff;color:var(--navy);border-color:#fff}
-.loginactions .btn.primary:hover{background:#eaeee9;filter:none}
+.loginactions .btn.primary{padding:11px 26px}
 </style>
 </head>
 <body>
 
 <div id="login" class="loginwrap" hidden>
   <div class="loginpanel">
-    <div class="brandmark"><span>Fundação</span> <span class="mc">Mestre Casais</span></div>
-    <h1 class="loginword">Armazém</h1>
+    <div class="loginmark">
+      <div class="brandmark"><span>Fundação</span> <span class="mc">Mestre Casais</span></div>
+      <h1 class="loginword">Armazém</h1>
+    </div>
     <p class="loginlede">Acesso reservado.</p>
     <form id="loginForm" class="loginform" novalidate>
       <div class="field"><label for="lemail">E-mail</label><input id="lemail" name="email" type="email" autocomplete="username" required></div>
