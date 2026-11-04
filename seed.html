@@ -1,0 +1,101 @@
+<!doctype html><html lang="pt"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Importar dados · Armazém FMC</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  body{font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#1b2420;line-height:1.5}
+  h1{font-size:1.5rem}
+  input,button{font:inherit;padding:8px 12px;border-radius:6px;border:1px solid #ccc}
+  button{background:#1f5c4a;color:#fff;border-color:#1f5c4a;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .box{border:1px solid #d8dcd4;border-radius:8px;padding:16px;margin:16px 0}
+  .sub{color:#5d6862;font-size:.9rem}
+  code{background:#eceee9;padding:1px 5px;border-radius:4px;font-size:.9em}
+  #log{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.85rem;background:#f5f6f3;border-radius:6px;padding:12px;margin-top:12px}
+  .ok{color:#2c7a4b}.bad{color:#b3362b}
+</style></head>
+<body>
+<h1>Importar dados iniciais</h1>
+<p class="sub">Página de uso único. Escreve o backup do inventário para o Firestore. Precisa de sessão iniciada com um perfil de administrador ou dono. Pode apagar este ficheiro depois.</p>
+
+<div class="box" id="loginBox">
+  <p><b>Inicie sessão</b></p>
+  <p><input id="email" type="email" placeholder="email" autocomplete="username"> <input id="pass" type="password" placeholder="palavra-passe" autocomplete="current-password"> <button id="login">Entrar</button></p>
+  <p class="sub" id="lmsg"></p>
+</div>
+
+<div class="box" id="runBox" hidden>
+  <p>Sessão: <b id="who"></b></p>
+  <p class="sub">O teu uid: <code id="uid"></code></p>
+  <p>Vou importar <b>4 prateleiras</b>, <b>3 produtos</b>, <b>3 movimentos</b> e a <b>etiqueta</b>. Os movimentos ficam registados com o teu nome.</p>
+  <button id="run">Importar agora</button>
+  <button id="out" style="background:#fff;color:#1b2420;border-color:#ccc">Sair</button>
+  <div id="log" hidden></div>
+</div>
+
+<script>
+const firebaseConfig={
+  apiKey:"AIzaSyCY3eISv8iUwmu4KwST8RgBQWJh254l_lQ",
+  authDomain:"fmc-stock-8c185.firebaseapp.com",
+  projectId:"fmc-stock-8c185",
+  storageBucket:"fmc-stock-8c185.firebasestorage.app",
+  messagingSenderId:"142029168214",
+  appId:"1:142029168214:web:a75134ebc659c2f2fba5f7"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(),db=firebase.firestore();
+const $=s=>document.querySelector(s);
+
+const PRATELEIRAS={
+  "2v9vi34nmfxpa2w7zyrs":{ativo:true,codigo:"P01",criadoEm:"2026-10-16T14:47:52.511Z",local:"Cozinha_Balcão_Inferior",nome:"FMC_0_0"},
+  "ze7mys5nlqwlezlwwxu9":{ativo:true,codigo:"P02",criadoEm:"2026-10-16T15:16:38.259Z",local:"Cozinha_Balcão_Superior",nome:"FMC_0_1"},
+  "zk580ystmaj1huj8c2tb":{ativo:true,codigo:"P03",criadoEm:"2026-10-16T15:28:14.027Z",local:"Cozinha_Esquerda",nome:"FMC_0_E"},
+  "h1h75gd6tygtkgw7s2mb":{ativo:true,codigo:"P04",criadoEm:"2026-10-16T16:31:48.949Z",local:"OpenSpace_Aparador_Aberto",nome:"FMC_1_0_EA"}
+};
+const PRODUTOS={
+  "dx9be229p9lgf86d4e52":{ativo:true,categoria:"Água",criadoEm:"2026-10-16T15:00:23.095Z",minimo:2,nome:"Água 10L",stockPor:{"2v9vi34nmfxpa2w7zyrs":2},unidade:"un."},
+  "m8zq81lh78yur0vioyck":{ativo:true,atualizadoEm:"2026-10-16T15:10:34.371Z",categoria:"Água",criadoEm:"2026-10-16T15:00:04.454Z",minimo:43,nome:"Água 0.33L",stockPor:{"2v9vi34nmfxpa2w7zyrs":43},unidade:"un."},
+  "7skd6ff1x0no1g7xjylf":{ativo:true,categoria:"Nespresso",criadoEm:"2026-10-16T15:17:05.085Z",minimo:0,nome:"Cápsulas",stockPor:{"ze7mys5nlqwlezlwwxu9":0},unidade:"un."}
+};
+// movimentos: "por" é preenchido com o uid de quem corre a importação
+const MOVIMENTOS={
+  "tfuwplmxtdc8ff6n480i":{delta:40,em:"2026-10-16T15:00:04.842Z",motivo:"Stock inicial",prateleiraCodigo:"P01",prateleiraId:"2v9vi34nmfxpa2w7zyrs",produtoId:"m8zq81lh78yur0vioyck",produtoNome:"Água 0.33L",stockApos:40,tipo:"entrada"},
+  "9wo59m23m6n12oagafsr":{delta:2,em:"2026-10-16T15:00:23.518Z",motivo:"Stock inicial",prateleiraCodigo:"P01",prateleiraId:"2v9vi34nmfxpa2w7zyrs",produtoId:"dx9be229p9lgf86d4e52",produtoNome:"Água 10L",stockApos:2,tipo:"entrada"},
+  "uuhu109zfzy9pg9v6zem":{delta:3,em:"2026-10-16T15:10:34.678Z",motivo:"",prateleiraCodigo:"P01",prateleiraId:"2v9vi34nmfxpa2w7zyrs",produtoId:"m8zq81lh78yur0vioyck",produtoNome:"Água 0.33L",stockApos:43,tipo:"entrada"}
+};
+const ETIQUETA={aviso:"Este material pertence à Fundação Mestre Casais e está sob controlo de inventário. Não retirar sem pedido aprovado. Todas as saídas ficam registadas.",contacto:"alexandre.lezon@fmestrecasais.pt / 915 388 152",lista:false,responsavel:"Alexandre Lezón"};
+
+$("#login").onclick=async()=>{
+  $("#lmsg").textContent="";
+  try{await auth.signInWithEmailAndPassword($("#email").value.trim(),$("#pass").value)}
+  catch(e){$("#lmsg").textContent="Não foi possível entrar: "+(e.code||e.message)}
+};
+$("#out").onclick=()=>auth.signOut();
+auth.onAuthStateChanged(u=>{
+  if(u){$("#loginBox").hidden=true;$("#runBox").hidden=false;$("#who").textContent=u.email;$("#uid").textContent=u.uid}
+  else{$("#loginBox").hidden=false;$("#runBox").hidden=true}
+});
+
+$("#run").onclick=async()=>{
+  const u=auth.currentUser;if(!u)return;
+  const log=$("#log");log.hidden=false;log.textContent="";
+  const line=(t,cls)=>{const s=document.createElement("span");s.textContent=t+"\n";if(cls)s.className=cls;log.appendChild(s)};
+  $("#run").disabled=true;
+  let ok=0,err=0;
+  async function put(col,id,data){
+    try{await db.collection(col).doc(id).set(data);ok++;line("✓ "+col+"/"+id,"ok")}
+    catch(e){err++;line("✗ "+col+"/"+id+" — "+(e.code||e.message),"bad")}
+  }
+  line("A importar…");
+  for(const [id,d] of Object.entries(PRATELEIRAS))await put("prateleiras",id,d);
+  for(const [id,d] of Object.entries(PRODUTOS))await put("produtos",id,d);
+  for(const [id,d] of Object.entries(MOVIMENTOS))await put("movimentos",id,{...d,por:u.uid});
+  await put("config","etiqueta",ETIQUETA);
+  line("");
+  line(`Concluído: ${ok} escritos, ${err} com erro.`,err?"bad":"ok");
+  if(!err)line("Podes fechar e apagar o seed.html. Abre o index.html para ver o inventário.","ok");
+  else line("Se deu erro de permissões, confirma que o teu perfil é owner/admin e que as regras estão publicadas.","bad");
+};
+</script>
+</body></html>

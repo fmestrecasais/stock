@@ -1,0 +1,875 @@
+<!doctype html><html lang="pt"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Armazém FMC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{color-scheme:light}
+html{box-sizing:border-box}*,*::before,*::after{box-sizing:inherit}
+:root{
+  --bg:#f5f6f3; --surface:#ffffff; --sunk:#eceee9; --line:#d8dcd4;
+  --fg:#1b2420; --muted:#5d6862; --accent:#1f5c4a; --accent-fg:#ffffff; --accent-soft:#dcebe4;
+  --ok:#2c7a4b; --ok-soft:#dff1e5; --warn:#a2640c; --warn-soft:#fbefd9; --bad:#b3362b; --bad-soft:#f8e1de;
+  --paper:#ffffff; --ink:#111111; --scrim:rgba(10,16,13,.45);
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Instrument Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121815; --surface:#1a221e; --sunk:#151c18; --line:#2c3832;
+  --fg:#e5ebe7; --muted:#97a49d; --accent:#6fc2a2; --accent-fg:#0d1a14; --accent-soft:#1f3a2f;
+  --ok:#6fcf93; --ok-soft:#1c3427; --warn:#e8b260; --warn-soft:#3a2c14; --bad:#f08a7f; --bad-soft:#3d1f1b; --scrim:rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121815; --surface:#1a221e; --sunk:#151c18; --line:#2c3832;
+  --fg:#e5ebe7; --muted:#97a49d; --accent:#6fc2a2; --accent-fg:#0d1a14; --accent-soft:#1f3a2f;
+  --ok:#6fcf93; --ok-soft:#1c3427; --warn:#e8b260; --warn-soft:#3a2c14; --bad:#f08a7f; --bad-soft:#3d1f1b; --scrim:rgba(0,0,0,.6); color-scheme:dark}
+
+body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+img{max-width:100%}
+.wrap{max-width:1080px;margin:0 auto;padding-block:24px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:1.9rem;font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.2rem;font-weight:700}
+h3{font-size:1.05rem}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.code{font-family:var(--mono);font-weight:500;letter-spacing:.02em}
+
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.who{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:.8rem;font-weight:600;border:1px solid var(--line);background:var(--surface)}
+.chip.admin{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.chip.req{background:var(--accent-soft);color:var(--fg);border-color:transparent}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.stat{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--mono);font-size:1.6rem;font-weight:500;font-variant-numeric:tabular-nums}
+.stat.alert b{color:var(--bad)} .stat.caution b{color:var(--warn)}
+
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+nav.tabs .count{font-family:var(--mono);font-size:.75rem;background:var(--warn-soft);color:var(--warn);border-radius:999px;padding:1px 7px;margin-left:6px}
+
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.bar .grow{flex:1 1 220px;min-width:0}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box}
+textarea{resize:vertical;min-height:64px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--sunk)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.small{padding:4px 10px;font-size:.85rem}
+.btn.danger{color:var(--bad);border-color:var(--bad-soft)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+
+.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.pname{font-weight:600}
+.sub{font-size:.82rem;color:var(--muted)}
+.pill{display:inline-block;font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.neutral{background:var(--sunk);color:var(--muted)}
+.loc{display:inline-flex;gap:4px;align-items:baseline;font-size:.82rem;background:var(--sunk);border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;white-space:nowrap}
+.loc .code{font-size:.78rem}
+.delta.pos{color:var(--ok)} .delta.neg{color:var(--bad)}
+tr.flag td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+
+.shelves{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.shelf{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.shelf .head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.shelf .big{font-family:var(--mono);font-size:1.25rem;font-weight:500}
+.shelf .meta{display:flex;gap:16px;flex-wrap:wrap}
+.shelf .meta div{display:flex;flex-direction:column}
+.shelf .meta b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:12px}
+.empty h3{color:var(--fg)}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;gap:8px;max-width:72ch}
+.note ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.banner{border-radius:var(--r);padding:12px 16px;background:var(--warn-soft);color:var(--fg);border:1px solid var(--line)}
+
+.detail{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px}
+.detail .head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end}
+.detail .big{font-family:var(--mono);font-size:2rem;font-weight:500;line-height:1}
+
+.paper{background:var(--paper);color:var(--ink);aspect-ratio:297/210;width:100%;max-width:420px;box-shadow:0 2px 14px rgba(0,0,0,.18);border-radius:2px;padding:5.4%;box-sizing:border-box;display:grid;grid-template-columns:1.12fr 1px 1fr;gap:5%;font-family:Helvetica,Arial,sans-serif;border-top:6px solid #1f5c4a;overflow:hidden}
+.paper .p-l,.paper .p-r{display:flex;flex-direction:column;gap:6px;min-width:0}
+.paper .p-r{align-items:center;justify-content:center}
+.paper .p-div{background:#c8c8c8}
+.paper .p-org{font-size:.45rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+.paper .p-title{font-size:.95rem;font-weight:700;line-height:1.1}
+.paper .p-text{font-size:.45rem;line-height:1.35}
+.paper .p-code{font-size:1.5rem;font-weight:700;text-align:center;letter-spacing:.02em;line-height:1}
+.paper .p-name{font-size:.5rem;text-align:center}
+.paper .p-qr{display:flex;justify-content:center;width:100%}
+.paper .p-qr svg{width:62%;height:auto}
+.paper .p-cap{font-size:.42rem;text-align:center;color:#555}
+.labelgrid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:700px){.labelgrid{grid-template-columns:1fr}}
+
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:20}
+.sheet{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--surface);z-index:21;box-shadow:-8px 0 30px rgba(0,0,0,.18);display:flex;flex-direction:column}
+.sheet header{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.sheet form{padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex:1}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:.85rem;font-weight:600}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sheet footer{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.err{color:var(--bad);font-size:.88rem;min-height:1em}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:30;font-weight:500;max-width:calc(100% - 32px)}
+input.count-in{width:90px;text-align:right;font-family:var(--mono)}
+@media (max-width:520px){h1{font-size:1.5rem}.row2{grid-template-columns:1fr}}
+
+/* login */
+.loginwrap{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px}
+.loginbox{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:28px 24px;display:flex;flex-direction:column;gap:14px}
+.loginbox h1{margin-top:2px}
+.loginbox .btn{width:100%}
+</style>
+</head>
+<body>
+
+<div id="login" class="loginwrap" hidden>
+  <form id="loginForm" class="loginbox" novalidate>
+    <div class="label">Fundação Mestre Casais</div>
+    <h1>Armazém FMC</h1>
+    <p class="sub" id="loginHint">Acesso reservado. Inicie sessão para continuar.</p>
+    <div class="field"><label for="lemail">Email</label><input id="lemail" name="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="lpass">Palavra-passe</label><input id="lpass" name="pass" type="password" autocomplete="current-password" required></div>
+    <div class="err" id="lerr"></div>
+    <button class="btn primary" type="submit" id="lbtn">Entrar</button>
+    <button class="btn" type="button" id="lreset">Esqueci a palavra-passe</button>
+  </form>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div>
+      <div class="label">Fundação Mestre Casais</div>
+      <h1>Armazém FMC</h1>
+    </div>
+    <div class="who" id="who"><span class="chip">A carregar…</span></div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <section class="stats" aria-label="Resumo">
+    <div class="stat"><span class="label">Prateleiras</span><b id="sShelf">—</b></div>
+    <div class="stat"><span class="label">Produtos ativos</span><b id="sProd">—</b></div>
+    <div class="stat caution"><span class="label">Abaixo do mínimo</span><b id="sLow">—</b></div>
+    <div class="stat"><span class="label">Pedidos pendentes</span><b id="sPend">—</b></div>
+    <div class="stat alert"><span class="label">Em falta nas contagens · 90 dias</span><b id="sMiss">—</b></div>
+  </section>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="inv" aria-selected="true">Inventário</button>
+    <button role="tab" data-tab="prat">Prateleiras</button>
+    <button role="tab" data-tab="ped">Pedidos<span class="count" id="tPend" hidden></span></button>
+    <button role="tab" data-tab="reg">Registo</button>
+    <button role="tab" data-tab="users" data-admin hidden>Utilizadores</button>
+    <button role="tab" data-tab="help">Como funciona</button>
+  </nav>
+
+  <section id="inv" class="tab">
+    <div class="bar">
+      <div class="grow"><input id="q" type="search" placeholder="Procurar produto, categoria ou prateleira" aria-label="Procurar"></div>
+      <button class="btn primary" id="btnNovo" data-admin hidden>Novo produto</button>
+    </div>
+    <div id="invBody" style="margin-top:12px"></div>
+  </section>
+
+  <section id="prat" class="tab" hidden>
+    <div id="pratDetail"></div>
+    <div id="pratList">
+      <div class="bar" style="margin-bottom:12px">
+        <span class="sub">Cada prateleira tem um código fixo. A folha A4 leva esse código e um QR que abre esta página na prateleira certa.</span>
+        <div class="btnrow" data-admin hidden>
+          <button class="btn" id="btnAllPdf">Folhas A4 de todas</button>
+          <button class="btn primary" id="btnNovaPrat">Nova prateleira</button>
+        </div>
+      </div>
+      <div id="pratBody"></div>
+    </div>
+  </section>
+
+  <section id="ped" class="tab" hidden><div id="pedBody"></div></section>
+
+  <section id="reg" class="tab" hidden>
+    <div class="bar">
+      <div class="grow" style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="fTipo" aria-label="Tipo de movimento" style="width:auto">
+          <option value="">Todos os movimentos</option>
+          <option value="entrada">Entradas</option>
+          <option value="saida">Saídas</option>
+          <option value="entrega">Entregas de pedidos</option>
+          <option value="transferencia">Transferências</option>
+          <option value="ajuste">Acertos de contagem</option>
+        </select>
+        <select id="fPrat" aria-label="Prateleira" style="width:auto"><option value="">Todas as prateleiras</option></select>
+        <select id="fProd" aria-label="Produto" style="width:auto"><option value="">Todos os produtos</option></select>
+      </div>
+      <button class="btn" id="btnCsv">Exportar CSV</button>
+    </div>
+    <div id="regBody" style="margin-top:12px"></div>
+  </section>
+
+  <section id="users" class="tab" hidden><div id="usersBody"></div></section>
+
+  <section id="help" class="tab" hidden>
+    <div class="note">
+      <h3>Quem pode fazer o quê</h3>
+      <ul>
+        <li><b>Dono</b>: faz as contagens físicas. Os acertos de contagem ficam com o seu nome. É também administrador.</li>
+        <li><b>Administrador</b>: cria produtos e prateleiras, regista entradas, saídas e transferências, aprova pedidos, gere utilizadores e gera as folhas A4.</li>
+        <li><b>Requisitante</b>: vê o stock e faz pedidos. Não altera quantidades; a base de dados recusa.</li>
+        <li><b>Só leitura</b>: vê o stock.</li>
+      </ul>
+      <h3 style="margin-top:8px">As folhas nas prateleiras</h3>
+      <ul>
+        <li>Cada folha diz que o material é da Fundação e não sai sem pedido aprovado, e tem o código da prateleira em grande.</li>
+        <li>O QR abre esta página já na prateleira. Quem não tem acesso não entra.</li>
+        <li>Na contagem, o dono lê o QR com o telemóvel, escreve o que está lá e regista. As diferenças negativas ficam marcadas como "Em falta".</li>
+        <li>A página regista e a folha avisa, mas não fecham o armário. O que trava desvios é chave nas prateleiras e a regra de que nada sai sem pedido.</li>
+      </ul>
+      <h3 style="margin-top:8px">Perfis novos</h3>
+      <ul>
+        <li>Quem entra pela primeira vez fica como "Só leitura" e aparece na aba Utilizadores. Um administrador atribui-lhe o perfil certo.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<div id="scrim" class="scrim" hidden></div>
+<aside id="sheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <header><div><div class="label" id="sheetEyebrow"></div><h2 id="sheetTitle"></h2></div><button class="btn small" id="sheetClose" type="button">Fechar</button></header>
+  <form id="sheetForm" novalidate><div id="sheetFields" style="display:flex;flex-direction:column;gap:14px"></div><div class="err" id="sheetErr"></div></form>
+  <footer><button class="btn" type="button" id="sheetCancel">Cancelar</button><button class="btn primary" type="submit" form="sheetForm" id="sheetOk">Guardar</button></footer>
+</aside>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ============ Firebase ============ */
+const firebaseConfig={
+  apiKey:"AIzaSyCY3eISv8iUwmu4KwST8RgBQWJh254l_lQ",
+  authDomain:"fmc-stock-8c185.firebaseapp.com",
+  projectId:"fmc-stock-8c185",
+  storageBucket:"fmc-stock-8c185.firebasestorage.app",
+  messagingSenderId:"142029168214",
+  appId:"1:142029168214:web:a75134ebc659c2f2fba5f7"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.firestore();
+
+/* ============ helpers ============ */
+const APP_URL=location.origin+location.pathname;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtN=n=>Number(n||0).toLocaleString("pt-PT");
+const fmtD=iso=>{try{return new Date(iso).toLocaleString("pt-PT",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}catch(e){return iso}};
+const fmtDay=iso=>{try{return new Date(iso).toLocaleDateString("pt-PT")}catch(e){return iso}};
+const now=()=>new Date().toISOString();
+const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+const ROLE_LABEL={owner:"Dono (contagens)",admin:"Administrador",requisitante:"Requisitante",leitura:"Só leitura"};
+const S={db,uid:null,role:"leitura",owner:false,me:{},produtos:[],prats:[],movs:[],decisoes:{},pedidos:[],cfg:{},names:{},users:[],tab:"inv",shelf:null,booted:false};
+const TIPOS={entrada:"Entrada",saida:"Saída",entrega:"Entrega",ajuste:"Acerto de contagem",transferencia:"Transferência"};
+
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,3400)}
+function nameOf(id){if(!id)return "—";if(id===S.uid)return "Tu";return (S.names[id]&&S.names[id].name)||"Alguém"}
+function download(filename,data){
+  const blob=data instanceof Blob?data:new Blob([data],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ---------- derived ---------- */
+const prodById=id=>S.produtos.find(p=>p.id===id);
+const pratById=id=>S.prats.find(p=>p.id===id);
+const ativasPrat=()=>S.prats.filter(p=>p.ativo!==false).sort((a,b)=>(a.codigo||"").localeCompare(b.codigo||"","pt",{numeric:true}));
+const ativosProd=()=>S.produtos.filter(p=>p.ativo!==false);
+const fullCode=pr=>"FMC-"+pr.codigo;
+const total=p=>Object.values(p.stockPor||{}).reduce((s,v)=>s+(Number(v)||0),0);
+const naPrat=(p,pid)=>Number((p.stockPor||{})[pid])||0;
+function prodsNaPrat(pid){return ativosProd().filter(p=>(p.stockPor||{})[pid]!==undefined).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","pt"))}
+function nextCode(){
+  let max=0;S.prats.forEach(p=>{const m=/^P(\d+)$/.exec(p.codigo||"");if(m)max=Math.max(max,+m[1])});
+  return "P"+String(max+1).padStart(2,"0");
+}
+function pedidosFlat(){
+  const out=[];
+  S.pedidos.forEach(doc=>{Object.entries(doc.itens||{}).forEach(([k,v])=>{
+    const dec=S.decisoes[doc.uid+"__"+k];
+    out.push({...v,rid:k,uid:doc.uid,estado:dec?dec.estado:"pendente",dec});
+  })});
+  return out.sort((a,b)=>(b.em||"").localeCompare(a.em||""));
+}
+function emFalta90(){const lim=Date.now()-90*864e5;return S.movs.filter(m=>m.tipo==="ajuste"&&m.delta<0&&new Date(m.em).getTime()>=lim).reduce((s,m)=>s-m.delta,0)}
+
+/* ---------- QR ---------- */
+function qrFor(text){if(typeof qrcode!=="function")return null;const q=qrcode(0,"M");q.addData(text);q.make();return q}
+function qrText(pr){return APP_URL+"#"+pr.codigo}
+function qrSvg(pr){
+  const q=qrFor(qrText(pr));if(!q)return '<span class="sub">QR indisponível</span>';
+  const n=q.getModuleCount();let d="";
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c} ${r}h1v1h-1z`;
+  return `<svg viewBox="-2 -2 ${n+4} ${n+4}" role="img" aria-label="QR ${esc(fullCode(pr))}"><rect x="-2" y="-2" width="${n+4}" height="${n+4}" fill="#ffffff"/><path d="${d}" fill="#111111"/></svg>`;
+}
+
+/* ---------- render ---------- */
+function render(){
+  if(!S.booted)return;
+  const admin=S.role==="admin";
+  document.querySelectorAll("[data-admin]").forEach(el=>el.hidden=!admin);
+  const ativos=ativosProd();
+  const low=ativos.filter(p=>Number(p.minimo)>0&&total(p)<=Number(p.minimo));
+  const peds=pedidosFlat();const pend=peds.filter(p=>p.estado==="pendente");
+  $("#sShelf").textContent=fmtN(ativasPrat().length);
+  $("#sProd").textContent=fmtN(ativos.length);
+  $("#sLow").textContent=fmtN(low.length);
+  $("#sPend").textContent=fmtN(pend.length);
+  $("#sMiss").textContent=fmtN(emFalta90());
+  const tp=$("#tPend");tp.hidden=!pend.length;tp.textContent=pend.length;
+  renderInv();renderPrat();renderPed(peds);renderReg();renderUsers();
+}
+
+function stockPill(p){
+  const s=total(p),m=Number(p.minimo)||0;
+  if(s<=0)return '<span class="pill bad">Esgotado</span>';
+  if(m&&s<=m)return '<span class="pill warn">Repor</span>';
+  return '<span class="pill ok">OK</span>';
+}
+function locs(p){
+  const e=Object.entries(p.stockPor||{});if(!e.length)return '<span class="sub">Sem prateleira</span>';
+  return e.map(([pid,q])=>{const pr=pratById(pid);return `<span class="loc"><span class="code">${esc(pr?fullCode(pr):"?")}</span><span class="num">${fmtN(q)}</span></span>`}).join("");
+}
+function renderInv(){
+  const ativos=ativosProd();
+  const q=$("#q").value.trim().toLowerCase();
+  const list=ativos.filter(p=>{if(!q)return true;const codes=Object.keys(p.stockPor||{}).map(id=>{const pr=pratById(id);return pr?fullCode(pr)+" "+(pr.nome||""):""}).join(" ");return [p.nome,p.categoria,codes].join(" ").toLowerCase().includes(q)}).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","pt"));
+  const box=$("#invBody");const admin=S.role==="admin";
+  if(!ativos.length){
+    box.innerHTML=admin
+      ?`<div class="tablebox"><div class="empty"><h3>Ainda não há produtos</h3><span>${ativasPrat().length?"Adiciona o primeiro artigo e diz em que prateleira está e quantos há hoje.":"Começa por criar as prateleiras, no separador Prateleiras. Depois adicionas os produtos a cada uma."}</span>${ativasPrat().length?'<button class="btn primary" onclick="openNovo()">Adicionar primeiro produto</button>':'<button class="btn primary" onclick="goTab(\'prat\')">Criar prateleiras</button>'}</div></div>`
+      :'<div class="tablebox"><div class="empty"><h3>Ainda não há produtos</h3><span>O inventário aparece aqui quando o administrador adicionar os artigos.</span></div></div>';
+    return;
+  }
+  if(!list.length){box.innerHTML='<div class="tablebox"><div class="empty">Nenhum produto corresponde à pesquisa.</div></div>';return}
+  box.innerHTML=`<div class="tablebox"><table><thead><tr><th>Produto</th><th>Onde está</th><th class="r">Total</th><th class="r">Mínimo</th><th>Estado</th><th class="r"></th></tr></thead><tbody>${
+    list.map(p=>`<tr><td><div class="pname">${esc(p.nome)}</div><div class="sub">${esc(p.categoria||"Sem categoria")}</div></td>
+    <td>${locs(p)}</td>
+    <td class="r num">${fmtN(total(p))} <span class="sub">${esc(p.unidade||"un.")}</span></td>
+    <td class="r num muted">${p.minimo?fmtN(p.minimo):"—"}</td>
+    <td>${stockPill(p)}</td>
+    <td class="r"><div class="actions">${admin
+      ?`<button class="btn small" onclick="openMov('${p.id}','entrada')">Entrada</button><button class="btn small" onclick="openMov('${p.id}','saida')">Saída</button><button class="btn small" onclick="openTransf('${p.id}')">Mover</button><button class="btn small" onclick="openEdit('${p.id}')">Editar</button>`
+      :(S.role==="requisitante"?`<button class="btn small primary" onclick="openPedido('${p.id}')" ${total(p)<=0?"disabled":""}>Pedir</button>`:"")}</div></td></tr>`).join("")
+  }</tbody></table></div>`;
+}
+
+/* shelves */
+function renderPrat(){
+  const det=$("#pratDetail"),lst=$("#pratList");
+  const pr=S.shelf&&pratById(S.shelf);
+  if(pr){lst.hidden=true;det.hidden=false;renderShelfDetail(pr);return}
+  det.hidden=true;lst.hidden=false;det.dataset.k="";
+  const box=$("#pratBody");const list=ativasPrat();const admin=S.role==="admin";
+  if(!list.length){box.innerHTML=`<div class="tablebox"><div class="empty"><h3>Ainda não há prateleiras</h3><span>${admin?"Cria uma por cada prateleira ou armário onde guardas material. Cada uma recebe um código (FMC-P01, FMC-P02…) para a folha A4.":"As prateleiras aparecem aqui quando o administrador as criar."}</span>${admin?'<button class="btn primary" onclick="openPrat()">Criar primeira prateleira</button>':""}</div></div>`;return}
+  box.innerHTML=`<div class="shelves">${list.map(s=>{
+    const ps=prodsNaPrat(s.id);const units=ps.reduce((t,p)=>t+naPrat(p,s.id),0);
+    return `<div class="shelf"><div class="head"><div><div class="big">${esc(fullCode(s))}</div><div class="pname">${esc(s.nome||"")}</div><div class="sub">${esc(s.local||"")}</div></div></div>
+    <div class="meta"><div><span class="label">Produtos</span><b>${fmtN(ps.length)}</b></div><div><span class="label">Unidades</span><b>${fmtN(units)}</b></div><div><span class="label">Última contagem</span><b>${s.ultimaContagem?fmtDay(s.ultimaContagem):"—"}</b></div></div>
+    <div class="btnrow"><button class="btn small primary" onclick="openShelf('${s.id}')">Abrir</button>${admin?`<button class="btn small" onclick="pdfShelves(['${s.id}'])">Folha A4</button><button class="btn small" onclick="openPrat('${s.id}')">Editar</button>`:""}</div></div>`}).join("")}</div>`;
+}
+function renderShelfDetail(pr){
+  const det=$("#pratDetail");const admin=S.role==="admin";const ps=prodsNaPrat(pr.id);
+  const key=pr.id+"|"+ps.map(p=>p.id).join(",")+"|"+S.role+"|"+S.owner;
+  if(det.dataset.k===key){ps.forEach(p=>{const c=det.querySelector(`[data-sys="${p.id}"]`);if(c)c.textContent=fmtN(naPrat(p,pr.id))});updContDiff();return}
+  det.dataset.k=key;
+  det.innerHTML=`<div class="detail">
+    <div class="head"><div><button class="btn small" onclick="closeShelf()">← Todas as prateleiras</button><div class="big" style="margin-top:12px">${esc(fullCode(pr))}</div><h2 style="margin-top:6px">${esc(pr.nome||"")}</h2><div class="sub">${esc(pr.local||"")}${pr.ultimaContagem?" · contada a "+fmtDay(pr.ultimaContagem):" · ainda sem contagem"}</div></div>
+    ${admin?`<div class="btnrow"><button class="btn" onclick="pdfShelves(['${pr.id}'])">Folha A4 (PDF)</button><button class="btn primary" onclick="openNovo('${pr.id}')">Pôr produto aqui</button></div>`:""}</div>
+    ${!ps.length?`<div class="empty"><span>Esta prateleira está vazia no sistema.${admin?" Usa “Pôr produto aqui” para registar o que lá está.":""}</span></div>`:
+    `<div class="tablebox"><table><thead><tr><th>Produto</th><th class="r">No sistema</th>${S.owner?'<th class="r">Contado</th><th class="r">Diferença</th>':'<th class="r"></th>'}</tr></thead><tbody>${
+      ps.map(p=>`<tr><td><div class="pname">${esc(p.nome)}</div><div class="sub">${esc(p.categoria||"")}</div></td>
+      <td class="r num" data-sys="${p.id}">${fmtN(naPrat(p,pr.id))}</td>
+      ${S.owner?`<td class="r"><input class="count-in" type="number" min="0" step="1" inputmode="numeric" id="cnt-${pr.id}-${p.id}" data-pid="${p.id}" aria-label="Contado: ${esc(p.nome)}"></td><td class="r num" id="dif-${p.id}">—</td>`
+      :`<td class="r">${S.role==="requisitante"?`<button class="btn small primary" onclick="openPedido('${p.id}','${pr.id}')" ${naPrat(p,pr.id)<=0?"disabled":""}>Pedir</button>`:""}</td>`}</tr>`).join("")
+    }</tbody></table></div>
+    ${S.owner?`<div class="bar"><span class="sub" id="contSum">Contagem: preenche o que está na prateleira. Em branco fica como está.</span><button class="btn primary" id="btnCont" onclick="registarContagem('${pr.id}')">Registar contagem</button></div>`:""}`}
+  </div>`;
+  det.querySelectorAll(".count-in").forEach(i=>i.addEventListener("input",updContDiff));
+}
+function updContDiff(){
+  const pr=S.shelf;if(!pr||!$("#contSum"))return;let n=0,falta=0;
+  document.querySelectorAll("#pratDetail .count-in").forEach(i=>{
+    const p=prodById(i.dataset.pid),cell=$("#dif-"+i.dataset.pid);if(!p||!cell)return;
+    if(i.value===""){cell.textContent="—";cell.className="r num";return}
+    const d=Number(i.value)-naPrat(p,pr);
+    cell.textContent=(d>0?"+":"")+fmtN(d);cell.className="r num delta "+(d>0?"pos":d<0?"neg":"");
+    if(d!==0)n++;if(d<0)falta-=d;
+  });
+  $("#contSum").textContent=n?`${n} produto(s) com diferença · ${fmtN(falta)} unidade(s) em falta`:"Contagem: preenche o que está na prateleira. Em branco fica como está.";
+}
+window.openShelf=function(id){S.shelf=id;goTab("prat");renderPrat();window.scrollTo({top:0})};
+window.closeShelf=function(){S.shelf=null;try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}renderPrat()};
+
+function estadoPill(e){return e==="aprovado"?'<span class="pill ok">Entregue</span>':e==="recusado"?'<span class="pill bad">Recusado</span>':'<span class="pill warn">Pendente</span>'}
+function renderPed(peds){
+  const box=$("#pedBody");const admin=S.role==="admin";
+  if(!peds.length){box.innerHTML=`<div class="tablebox"><div class="empty"><h3>Sem pedidos</h3><span>${admin?"Os pedidos da equipa aparecem aqui. Aprovar desconta o stock da prateleira que escolheres e regista a entrega.":"Encontra o produto no Inventário e carrega em Pedir. O pedido fica pendente até ser aprovado."}</span></div></div>`;return}
+  box.innerHTML=`<div class="tablebox"><table><thead><tr><th>Pedido</th>${admin?"<th>Quem</th>":""}<th class="r">Qtd.</th><th>Motivo</th><th>Estado</th>${admin?'<th class="r"></th>':""}</tr></thead><tbody>${
+    peds.map(p=>{const pr=prodById(p.produtoId);return `<tr>
+      <td><div class="pname">${esc(pr?pr.nome:p.produtoNome)}</div><div class="sub">${fmtD(p.em)}</div></td>
+      ${admin?`<td>${esc(nameOf(p.uid))}</td>`:""}
+      <td class="r num">${fmtN(p.qtd)}</td>
+      <td style="max-width:28ch">${esc(p.motivo||"—")}${p.dec&&p.dec.nota?`<div class="sub">Nota: ${esc(p.dec.nota)}</div>`:""}</td>
+      <td>${estadoPill(p.estado)}${p.dec?`<div class="sub">${esc(nameOf(p.dec.por))} · ${fmtD(p.dec.em)}</div>`:""}</td>
+      ${admin?`<td class="r"><div class="actions">${p.estado==="pendente"?`<button class="btn small primary" onclick="decidir('${p.uid}','${p.rid}','aprovado')">Aprovar</button><button class="btn small danger" onclick="decidir('${p.uid}','${p.rid}','recusado')">Recusar</button>`:""}</div></td>`:""}
+    </tr>`}).join("")}</tbody></table></div>`;
+}
+
+function regFiltered(){
+  const t=$("#fTipo").value,pid=$("#fProd").value,sh=$("#fPrat").value;
+  return S.movs.filter(m=>(!t||m.tipo===t)&&(!pid||m.produtoId===pid)&&(!sh||m.prateleiraId===sh||m.paraPrateleiraId===sh));
+}
+function shelfLabel(id,code){const pr=pratById(id);return pr?fullCode(pr):(code?"FMC-"+code:"—")}
+function renderReg(){
+  const sp=$("#fProd"),cp=sp.value;
+  sp.innerHTML='<option value="">Todos os produtos</option>'+S.produtos.slice().sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","pt")).map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join("");sp.value=cp;
+  const sh=$("#fPrat"),cs=sh.value;
+  sh.innerHTML='<option value="">Todas as prateleiras</option>'+ativasPrat().map(p=>`<option value="${p.id}">${esc(fullCode(p))} · ${esc(p.nome||"")}</option>`).join("");sh.value=cs;
+  const list=regFiltered();const box=$("#regBody");
+  if(!list.length){box.innerHTML='<div class="tablebox"><div class="empty"><h3>Sem movimentos</h3><span>Cada entrada, saída, entrega, transferência e acerto de contagem fica aqui, com nome, hora e prateleira.</span></div></div>';return}
+  box.innerHTML=`<div class="tablebox"><table><thead><tr><th>Quando</th><th>Produto</th><th>Prateleira</th><th>Tipo</th><th class="r">Variação</th><th class="r">Fica na prat.</th><th>Registado por</th><th>Motivo</th></tr></thead><tbody>${
+    list.map(m=>`<tr class="${m.tipo==="ajuste"&&m.delta<0?"flag":""}"><td class="num sub">${fmtD(m.em)}</td>
+    <td class="pname">${esc(m.produtoNome)}</td>
+    <td class="code">${esc(shelfLabel(m.prateleiraId,m.prateleiraCodigo))}${m.tipo==="transferencia"?" → "+esc(shelfLabel(m.paraPrateleiraId,m.paraPrateleiraCodigo)):""}</td>
+    <td>${m.tipo==="ajuste"&&m.delta<0?'<span class="pill bad">Em falta</span>':`<span class="pill neutral">${TIPOS[m.tipo]||m.tipo}</span>`}</td>
+    <td class="r num delta ${m.tipo==="transferencia"?"":m.delta>0?"pos":"neg"}">${m.tipo==="transferencia"?fmtN(m.qtd):(m.delta>0?"+":"")+fmtN(m.delta)}</td>
+    <td class="r num">${m.stockApos!=null?fmtN(m.stockApos):"—"}</td>
+    <td>${esc(nameOf(m.por))}${m.para?`<div class="sub">Entregue a ${esc(nameOf(m.para))}</div>`:""}</td>
+    <td style="max-width:30ch">${esc(m.motivo||"—")}</td></tr>`).join("")
+  }</tbody></table></div>${S.movs.length>=500?'<p class="sub">A mostrar os 500 movimentos mais recentes.</p>':""}`;
+}
+
+/* ---------- users (admin) ---------- */
+function renderUsers(){
+  const box=$("#usersBody");if(!box)return;
+  if(S.role!=="admin"){box.innerHTML='<div class="tablebox"><div class="empty">Área reservada a administradores.</div></div>';return}
+  const list=S.users.slice().sort((a,b)=>(a.nome||a.email||"").localeCompare(b.nome||b.email||"","pt"));
+  if(!list.length){box.innerHTML='<div class="tablebox"><div class="empty"><h3>Sem utilizadores</h3><span>As pessoas aparecem aqui depois de entrarem a primeira vez. Depois atribui-lhes o perfil.</span></div></div>';return}
+  box.innerHTML=`<p class="sub" style="margin-bottom:12px">Quem entra fica como “Só leitura”. Promove aqui para Requisitante ou Administrador. Não consegues mudar o teu próprio perfil.</p>
+  <div class="tablebox"><table><thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th class="r"></th></tr></thead><tbody>${
+    list.map(u=>`<tr><td class="pname">${esc(u.nome||"—")}${u.id===S.uid?' <span class="sub">(tu)</span>':""}</td>
+    <td class="sub">${esc(u.email||"")}</td>
+    <td>${esc(ROLE_LABEL[u.role]||u.role||"—")}</td>
+    <td class="r"><div class="actions">${u.id===S.uid?"":`<button class="btn small" onclick="openUser('${u.id}')">Alterar</button>`}</div></td></tr>`).join("")
+  }</tbody></table></div>`;
+}
+window.openUser=function(id){
+  const u=S.users.find(x=>x.id===id);if(!u)return;
+  if(id===S.uid){toast("Não podes alterar o teu próprio perfil");return}
+  openSheet({eyebrow:"Utilizador",title:u.nome||u.email||"Utilizador",ok:"Guardar",
+    fields:fld("f-un","Nome",`<input id="f-un" name="nome" value="${esc(u.nome||"")}">`)+
+      fld("f-ur","Perfil",`<select id="f-ur" name="role">${Object.entries(ROLE_LABEL).map(([k,v])=>`<option value="${k}" ${u.role===k?"selected":""}>${v}</option>`).join("")}</select>`)+
+      `<p class="sub">Email: ${esc(u.email||"—")}</p>`,
+    onSubmit:async d=>{
+      await S.db.doc("users/"+id).update({nome:(d.nome||"").trim()||u.email,role:d.role});
+      return "Perfil atualizado";
+    }});
+};
+
+/* ---------- sheet ---------- */
+let sheetSubmit=null,sheetAfter=null;
+function openSheet({eyebrow,title,fields,ok,onSubmit,after}){
+  $("#sheetEyebrow").textContent=eyebrow||"";$("#sheetTitle").textContent=title;
+  $("#sheetFields").innerHTML=fields;$("#sheetErr").textContent="";$("#sheetOk").textContent=ok||"Guardar";$("#sheetOk").disabled=false;
+  sheetSubmit=onSubmit;$("#scrim").hidden=false;$("#sheet").hidden=false;
+  after&&after();
+  const f=$("#sheetFields").querySelector("input,select,textarea");f&&f.focus();
+}
+function closeSheet(){$("#scrim").hidden=true;$("#sheet").hidden=true;sheetSubmit=null}
+$("#sheetClose").onclick=closeSheet;$("#sheetCancel").onclick=closeSheet;$("#scrim").onclick=closeSheet;
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#sheet").hidden)closeSheet()});
+$("#sheetForm").addEventListener("submit",async e=>{
+  e.preventDefault();if(!sheetSubmit)return;
+  const fd=Object.fromEntries(new FormData(e.target).entries());
+  $("#sheetOk").disabled=true;$("#sheetErr").textContent="";
+  try{const msg=await sheetSubmit(fd);closeSheet();if(msg)toast(msg)}
+  catch(err){$("#sheetErr").textContent=err.userMsg||permMsg(err);$("#sheetOk").disabled=false}
+});
+function fail(m){const e=new Error(m);e.userMsg=m;throw e}
+function permMsg(err){
+  const c=err&&err.code;
+  if(c==="permission-denied"||c==="permission_denied"||c==="invalid-argument")return "Não tens permissão para isto. Pede a um administrador.";
+  if(c==="unavailable")return "Sem ligação neste momento. Tenta outra vez daqui a pouco.";
+  return "Não foi possível guardar ("+(c||"erro")+"). Tenta outra vez.";
+}
+const fld=(id,label,html)=>`<div class="field"><label for="${id}">${label}</label>${html}</div>`;
+function pratOptions(sel,onlyIds){
+  const list=ativasPrat().filter(p=>!onlyIds||onlyIds.includes(p.id));
+  return list.map(p=>`<option value="${p.id}" ${p.id===sel?"selected":""}>${esc(fullCode(p))} · ${esc(p.nome||"")}</option>`).join("");
+}
+
+/* ---------- shelves CRUD ---------- */
+window.openPrat=function(id){
+  const pr=id?pratById(id):null;const code=pr?pr.codigo:nextCode();
+  openSheet({eyebrow:pr?"Editar prateleira":"Nova prateleira",title:"FMC-"+code,ok:pr?"Guardar":"Criar prateleira",
+    fields:fld("f-pn","Nome",`<input id="f-pn" name="nome" required value="${esc(pr&&pr.nome)}" placeholder="Ex.: Estante das publicações">`)+
+      fld("f-pl","Onde fica",`<input id="f-pl" name="local" value="${esc(pr&&pr.local)}" placeholder="Ex.: Sede, piso 0, sala de arquivo">`)+
+      `<p class="sub">O código <span class="code">FMC-${esc(code)}</span> é fixo e vai na folha A4.</p>`+
+      (pr?`<label class="sub" style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="arquivar" id="f-parq" style="width:auto"> Desativar prateleira (só se estiver vazia)</label>`:""),
+    onSubmit:async d=>{
+      if(!d.nome.trim())fail("Dá um nome à prateleira.");
+      if(pr){
+        if(d.arquivar&&prodsNaPrat(pr.id).some(p=>naPrat(p,pr.id)>0))fail("Ainda há stock nesta prateleira. Move-o primeiro.");
+        await S.db.doc("prateleiras/"+pr.id).update({nome:d.nome.trim(),local:d.local.trim(),ativo:!d.arquivar});
+        return d.arquivar?"Prateleira desativada":"Prateleira guardada";
+      }
+      await S.db.collection("prateleiras").add({codigo:code,nome:d.nome.trim(),local:d.local.trim(),ativo:true,criadoEm:now()});
+      return `Prateleira FMC-${code} criada`;
+    }});
+};
+$("#btnNovaPrat").onclick=()=>openPrat();
+
+/* ---------- products ---------- */
+function prodFields(p={}){
+  return fld("f-nome","Nome do produto",`<input id="f-nome" name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Ensaios FMC n.º 3">`)+
+  fld("f-cat","Categoria",`<input id="f-cat" name="categoria" value="${esc(p.categoria)}" placeholder="Publicações, merchandising, material de evento…">`)+
+  `<div class="row2">${fld("f-un","Unidade",`<input id="f-un" name="unidade" value="${esc(p.unidade||"un.")}">`)}${fld("f-min","Stock mínimo (total)",`<input id="f-min" name="minimo" type="number" min="0" step="1" value="${esc(p.minimo??"")}">`)}</div>`;
+}
+window.openNovo=function(pratId){
+  if(!ativasPrat().length){toast("Cria primeiro uma prateleira");goTab("prat");return}
+  const existentes=ativosProd().filter(p=>!pratId||(p.stockPor||{})[pratId]===undefined).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","pt"));
+  openSheet({eyebrow:"Inventário",title:pratId?"Pôr produto em "+fullCode(pratById(pratId)):"Novo produto",ok:"Guardar",
+    fields:(pratId&&existentes.length?fld("f-ex","Produto",`<select id="f-ex" name="existente"><option value="">Novo produto…</option>${existentes.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join("")}</select>`):"")+
+      `<div id="novoCampos" style="display:flex;flex-direction:column;gap:14px">${prodFields()}</div>`+
+      fld("f-pr","Prateleira",`<select id="f-pr" name="prat">${pratOptions(pratId)}</select>`)+
+      fld("f-ini","Quantidade que lá está hoje",`<input id="f-ini" name="inicial" type="number" min="0" step="1" value="0">`),
+    after:()=>{const ex=$("#f-ex");if(ex)ex.addEventListener("change",()=>{$("#novoCampos").hidden=!!ex.value;$("#f-nome").required=!ex.value})},
+    onSubmit:async d=>{
+      const ini=Math.max(0,parseInt(d.inicial||"0",10)||0);const pr=pratById(d.prat);if(!pr)fail("Escolhe a prateleira.");
+      let p;
+      if(d.existente){
+        p=prodById(d.existente);
+        await S.db.doc("produtos/"+p.id).update({["stockPor."+pr.id]:naPrat(p,pr.id)+ini,atualizadoEm:now()});
+      }else{
+        if(!d.nome.trim())fail("Escreve o nome do produto.");
+        const ref=S.db.collection("produtos").doc();
+        p={id:ref.id,nome:d.nome.trim()};
+        await ref.set({nome:p.nome,categoria:d.categoria.trim(),unidade:d.unidade.trim()||"un.",minimo:parseInt(d.minimo||"0",10)||0,stockPor:{[pr.id]:ini},ativo:true,criadoEm:now()});
+      }
+      if(ini>0)await S.db.collection("movimentos").add({produtoId:p.id,produtoNome:p.nome,prateleiraId:pr.id,prateleiraCodigo:pr.codigo,tipo:"entrada",delta:ini,stockApos:(d.existente?naPrat(p,pr.id):0)+ini,motivo:"Stock inicial",por:S.uid,em:now()});
+      return `Guardado em ${fullCode(pr)}`;
+    }});
+};
+$("#btnNovo").onclick=()=>openNovo();
+
+window.openEdit=function(id){
+  const p=prodById(id);if(!p)return;
+  openSheet({eyebrow:"Editar",title:p.nome,ok:"Guardar alterações",
+    fields:prodFields(p)+`<p class="sub">As quantidades só mudam com Entrada, Saída, Mover ou Contagem, para ficarem sempre registadas.</p><label class="sub" style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="arquivar" id="f-arq" style="width:auto"> Arquivar produto (deixa de aparecer, o histórico mantém-se)</label>`,
+    onSubmit:async d=>{
+      if(!d.nome.trim())fail("Escreve o nome do produto.");
+      await S.db.doc("produtos/"+id).update({nome:d.nome.trim(),categoria:d.categoria.trim(),unidade:d.unidade.trim()||"un.",minimo:parseInt(d.minimo||"0",10)||0,ativo:!d.arquivar,atualizadoEm:now()});
+      return d.arquivar?"Produto arquivado":"Alterações guardadas";
+    }});
+};
+
+async function mover(p,pratId,delta,tipo,motivo,para){
+  const pr=pratById(pratId);if(!pr)fail("Escolhe a prateleira.");
+  const fresh=await S.db.doc("produtos/"+p.id).get();
+  const sp=(fresh.exists&&fresh.data().stockPor)||p.stockPor||{};
+  const atual=Number(sp[pratId])||0;const novo=atual+delta;
+  if(novo<0)fail(`Só há ${fmtN(atual)} em ${fullCode(pr)}.`);
+  await S.db.doc("produtos/"+p.id).update({["stockPor."+pratId]:novo,atualizadoEm:now()});
+  const m={produtoId:p.id,produtoNome:p.nome,prateleiraId:pr.id,prateleiraCodigo:pr.codigo,tipo,delta,stockApos:novo,motivo:motivo||"",por:S.uid,em:now()};
+  if(para)m.para=para;
+  await S.db.collection("movimentos").add(m);
+}
+window.openMov=function(id,tipo){
+  const p=prodById(id);if(!p)return;const entrada=tipo==="entrada";
+  const onde=Object.keys(p.stockPor||{});
+  if(!entrada&&!onde.length){toast("Este produto não está em nenhuma prateleira");return}
+  openSheet({eyebrow:entrada?"Entrada de stock":"Saída de stock",title:p.nome,ok:entrada?"Registar entrada":"Registar saída",
+    fields:`<p>${locs(p)}</p>`+fld("f-pr","Prateleira",`<select id="f-pr" name="prat">${pratOptions(onde[0],entrada?null:onde)}</select>`)+
+      fld("f-q","Quantidade",`<input id="f-q" name="qtd" type="number" min="1" step="1" required>`)+
+      fld("f-m",entrada?"Origem (fornecedor, gráfica, devolução…)":"Destino e motivo (obrigatório)",`<textarea id="f-m" name="motivo" placeholder="${entrada?"Ex.: Gráfica, 2.ª tiragem":"Ex.: FMC Talks de novembro, mesa de acolhimento"}"></textarea>`),
+    onSubmit:async d=>{
+      const q=parseInt(d.qtd,10);if(!(q>0))fail("Indica uma quantidade maior que zero.");
+      if(!entrada&&!d.motivo.trim())fail("Escreve para onde vai e porquê.");
+      await mover(p,d.prat,entrada?q:-q,tipo,d.motivo.trim());
+      return entrada?"Entrada registada":"Saída registada";
+    }});
+};
+window.openTransf=function(id){
+  const p=prodById(id);if(!p)return;const onde=Object.keys(p.stockPor||{}).filter(k=>naPrat(p,k)>0);
+  if(!onde.length){toast("Não há stock deste produto para mover");return}
+  if(ativasPrat().length<2){toast("Precisas de pelo menos duas prateleiras");return}
+  openSheet({eyebrow:"Mover entre prateleiras",title:p.nome,ok:"Mover",
+    fields:`<p>${locs(p)}</p><div class="row2">${fld("f-de","De",`<select id="f-de" name="de">${pratOptions(onde[0],onde)}</select>`)}${fld("f-para","Para",`<select id="f-para" name="para">${pratOptions()}</select>`)}</div>`+
+      fld("f-q","Quantidade",`<input id="f-q" name="qtd" type="number" min="1" step="1" required>`),
+    onSubmit:async d=>{
+      const q=parseInt(d.qtd,10);if(!(q>0))fail("Indica uma quantidade maior que zero.");
+      if(d.de===d.para)fail("Escolhe prateleiras diferentes.");
+      const de=pratById(d.de),pa=pratById(d.para);
+      const fresh=await S.db.doc("produtos/"+p.id).get();const sp=(fresh.data()&&fresh.data().stockPor)||{};
+      const a=Number(sp[d.de])||0,b=Number(sp[d.para])||0;if(q>a)fail(`Só há ${fmtN(a)} em ${fullCode(de)}.`);
+      await S.db.doc("produtos/"+p.id).update({["stockPor."+d.de]:a-q,["stockPor."+d.para]:b+q,atualizadoEm:now()});
+      await S.db.collection("movimentos").add({produtoId:p.id,produtoNome:p.nome,tipo:"transferencia",qtd:q,delta:0,prateleiraId:de.id,prateleiraCodigo:de.codigo,paraPrateleiraId:pa.id,paraPrateleiraCodigo:pa.codigo,stockApos:b+q,motivo:"",por:S.uid,em:now()});
+      return `Movido para ${fullCode(pa)}`;
+    }});
+};
+
+window.decidir=function(uid,r,estado){
+  const ped=pedidosFlat().find(x=>x.uid===uid&&x.rid===r);if(!ped)return;
+  const p=prodById(ped.produtoId);const aprovar=estado==="aprovado";
+  const onde=p?Object.keys(p.stockPor||{}).filter(k=>naPrat(p,k)>0):[];
+  openSheet({eyebrow:aprovar?"Aprovar e entregar":"Recusar pedido",title:(p?p.nome:ped.produtoNome),ok:aprovar?"Aprovar e descontar":"Recusar",
+    fields:`<p><b>${esc(nameOf(uid))}</b> pede <span class="num">${fmtN(ped.qtd)}</span> ${esc(p?p.unidade:"un.")}.</p><p class="sub">Motivo: ${esc(ped.motivo||"—")}</p>${p?`<p>${locs(p)}</p>`:""}`+
+      (aprovar&&p?fld("f-pr","Tirar de",`<select id="f-pr" name="prat">${pratOptions(ped.prateleiraId&&onde.includes(ped.prateleiraId)?ped.prateleiraId:onde[0],onde)}</select>`):"")+
+      fld("f-n","Nota (opcional)",`<textarea id="f-n" name="nota" placeholder="${aprovar?"Ex.: Levantar na receção":"Ex.: Reservado para a inauguração"}"></textarea>`),
+    onSubmit:async d=>{
+      if(aprovar){if(!p)fail("Este produto já não existe.");if(!onde.length)fail("Não há stock deste produto.");await mover(p,d.prat,-Number(ped.qtd),"entrega",`Pedido: ${ped.motivo||"sem motivo"}`,uid)}
+      await S.db.doc("decisoes/"+uid+"__"+r).set({estado,por:S.uid,em:now(),nota:(d.nota||"").trim()});
+      return aprovar?"Pedido aprovado e stock descontado":"Pedido recusado";
+    }});
+};
+
+window.registarContagem=async function(pratId){
+  if(!S.owner)return;const pr=pratById(pratId);const btn=$("#btnCont");const diffs=[];
+  document.querySelectorAll("#pratDetail .count-in").forEach(i=>{if(i.value==="")return;const p=prodById(i.dataset.pid);if(!p)return;const c=parseInt(i.value,10);if(c>=0)diffs.push({p,c})});
+  if(!diffs.length){toast("Preenche pelo menos um produto");return}
+  btn.disabled=true;let n=0;
+  try{
+    for(const {p,c} of diffs){
+      const fresh=await S.db.doc("produtos/"+p.id).get();const atual=Number(((fresh.data()||{}).stockPor||{})[pratId])||0;const d=c-atual;if(!d)continue;
+      await S.db.doc("produtos/"+p.id).update({["stockPor."+pratId]:c});
+      await S.db.collection("movimentos").add({produtoId:p.id,produtoNome:p.nome,prateleiraId:pr.id,prateleiraCodigo:pr.codigo,tipo:"ajuste",delta:d,stockApos:c,motivo:d<0?"Contagem física: em falta":"Contagem física: a mais",por:S.uid,em:now()});n++;
+    }
+    await S.db.doc("prateleiras/"+pratId).update({ultimaContagem:now()});
+    $("#pratDetail").dataset.k="";renderPrat();
+    toast(n?`Contagem registada · ${n} acerto(s)`:"Contagem registada · tudo certo");
+  }catch(e){toast(permMsg(e))}
+  btn&&(btn.disabled=false);
+};
+
+/* ---------- requester ---------- */
+window.openPedido=function(id,pratId){
+  const p=prodById(id);if(!p)return;
+  openSheet({eyebrow:"Pedir produto",title:p.nome,ok:"Enviar pedido",
+    fields:`<p class="sub">Disponível: <span class="num">${fmtN(total(p))}</span> ${esc(p.unidade||"un.")}</p>`+
+      fld("f-q","Quantidade",`<input id="f-q" name="qtd" type="number" min="1" max="${total(p)}" step="1" required>`)+
+      fld("f-m","Para quê (evento, reunião, envio…)",`<textarea id="f-m" name="motivo" required placeholder="Ex.: Visita de uma escola à sede, dia 22"></textarea>`),
+    onSubmit:async d=>{
+      const q=parseInt(d.qtd,10);if(!(q>0))fail("Indica uma quantidade maior que zero.");
+      if(q>total(p))fail(`Só há ${fmtN(total(p))} disponíveis.`);
+      if(!d.motivo.trim())fail("Diz para que é o pedido.");
+      const ref=S.db.doc("pedidos/"+S.uid);
+      const item={produtoId:p.id,produtoNome:p.nome,qtd:q,motivo:d.motivo.trim(),em:now()};if(pratId)item.prateleiraId=pratId;
+      const k=rid();
+      const snap=await ref.get();
+      if(snap.exists)await ref.update({["itens."+k]:item});else await ref.set({nome:S.me.nome||"",itens:{[k]:item}});
+      return "Pedido enviado. Fica pendente até ser aprovado.";
+    }});
+};
+
+/* ---------- A4 labels ---------- */
+function labelFields(){
+  const c=S.cfg||{};
+  return fld("f-lr","Responsável",`<input id="f-lr" name="responsavel" value="${esc(c.responsavel||"")}" placeholder="Nome de quem gere o material">`)+
+    fld("f-lc","Contacto para pedidos",`<input id="f-lc" name="contacto" value="${esc(c.contacto||"")}" placeholder="Email ou extensão">`)+
+    fld("f-la","Aviso",`<textarea id="f-la" name="aviso">${esc(c.aviso||"Este material pertence à Fundação Mestre Casais e está sob controlo de inventário. Não retirar sem pedido aprovado. Todas as saídas ficam registadas.")}</textarea>`)+
+    `<label class="sub" style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="lista" id="f-ll" style="width:auto" ${c.lista!==false?"checked":""}> Incluir a lista de produtos da prateleira (à data de hoje)</label>`;
+}
+window.pdfShelves=function(ids){
+  const prs=ids.map(pratById).filter(Boolean);if(!prs.length){toast("Não há prateleiras");return}
+  openSheet({eyebrow:"Folha A4 para a prateleira",title:prs.length===1?fullCode(prs[0]):`${prs.length} prateleiras`,ok:"Gerar PDF",
+    fields:`<div class="labelgrid" style="grid-template-columns:1fr"><div id="prevBox"></div></div>`+labelFields(),
+    after:()=>{const upd=()=>{const f=Object.fromEntries(new FormData($("#sheetForm")).entries());$("#prevBox").innerHTML=paperHtml(prs[0],{...f,lista:!!f.lista})};upd();$("#sheetForm").addEventListener("input",upd);sheetAfter=upd},
+    onSubmit:async d=>{
+      const cfg={responsavel:(d.responsavel||"").trim(),contacto:(d.contacto||"").trim(),aviso:(d.aviso||"").trim(),lista:!!d.lista};
+      if(S.role==="admin"){try{await S.db.doc("config/etiqueta").set(cfg)}catch(e){}}
+      await savePdf(prs,cfg);return null;
+    }});
+};
+$("#btnAllPdf").onclick=()=>pdfShelves(ativasPrat().map(p=>p.id));
+function paperHtml(pr,c){
+  const ps=prodsNaPrat(pr.id);
+  return `<div class="paper" aria-label="Pré-visualização da folha A4 horizontal">
+    <div class="p-l">
+      <div class="p-org">Fundação Mestre Casais</div>
+      <div class="p-title">Material da Fundação</div>
+      <div class="p-text">${esc(c.aviso||"")}</div>
+      <div class="p-text">${c.responsavel?"Responsável: "+esc(c.responsavel)+"<br>":""}${c.contacto?"Pedidos: "+esc(c.contacto):""}</div>
+      ${c.lista&&ps.length?`<div class="p-text"><b>Conteúdo a ${fmtDay(now())}:</b><br>${ps.slice(0,6).map(p=>"• "+esc(p.nome)).join("<br>")}${ps.length>6?"<br>…":""}</div>`:""}
+    </div>
+    <div class="p-div"></div>
+    <div class="p-r">
+      <div class="p-code">${esc(fullCode(pr))}</div>
+      <div class="p-name">${esc(pr.nome||"")}${pr.local?" · "+esc(pr.local):""}</div>
+      <div class="p-qr">${qrSvg(pr)}</div>
+      <div class="p-cap">Ler para ver o conteúdo desta prateleira</div>
+    </div>
+  </div>`;
+}
+async function savePdf(prs,c){
+  if(!window.jspdf||typeof qrcode!=="function")fail("Não foi possível carregar o gerador de PDF. Recarrega a página.");
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:"landscape"});
+  const W=297,H=210,M=16,LX=M,LW=124,DX=152,RX=DX+10,RW=W-M-RX,RC=RX+RW/2;
+  prs.forEach((pr,i)=>{
+    if(i)doc.addPage("a4","landscape");
+    doc.setFillColor(31,92,74);doc.rect(0,0,W,7,"F");
+    let y=M+12;
+    doc.setTextColor(17,17,17);doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setCharSpace(1.2);
+    doc.text("FUNDAÇÃO MESTRE CASAIS",LX,y);doc.setCharSpace(0);
+    y+=14;doc.setFontSize(28);doc.text("Material da Fundação",LX,y);
+    y+=10;doc.setFont("helvetica","normal");doc.setFontSize(12);
+    const lines=doc.splitTextToSize(c.aviso||"",LW);doc.text(lines,LX,y);y+=lines.length*5.4+4;
+    doc.setFontSize(11);
+    if(c.responsavel){doc.text("Responsável: "+c.responsavel,LX,y);y+=6}
+    if(c.contacto){doc.text("Pedidos: "+c.contacto,LX,y);y+=6}
+    const ps=prodsNaPrat(pr.id);
+    if(c.lista&&ps.length){
+      y+=6;doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("Conteúdo a "+fmtDay(now()),LX,y);y+=6;
+      doc.setFont("helvetica","normal");doc.setFontSize(10);
+      const maxRows=Math.max(0,Math.floor((H-M-10-y)/5));
+      const cols=ps.length>maxRows?2:1,colW=LW/cols;
+      ps.slice(0,maxRows*cols).forEach((p,j)=>{const col=Math.floor(j/maxRows),row=j%maxRows;
+        const t=doc.splitTextToSize("• "+p.nome,colW-3)[0];doc.text(t,LX+col*colW,y+row*5)});
+      if(ps.length>maxRows*cols){doc.text("…",LX,H-M-8)}
+    }
+    doc.setDrawColor(200,200,200);doc.line(DX,M+4,DX,H-M-6);
+    doc.setTextColor(17,17,17);doc.setFont("helvetica","bold");
+    let fs=58;doc.setFontSize(fs);while(doc.getTextWidth(fullCode(pr))>RW&&fs>30){fs-=2;doc.setFontSize(fs)}
+    doc.text(fullCode(pr),RC,M+26,{align:"center"});
+    doc.setFont("helvetica","normal");doc.setFontSize(13);
+    const nm=doc.splitTextToSize((pr.nome||"")+(pr.local?" · "+pr.local:""),RW).slice(0,2);
+    doc.text(nm,RC,M+36,{align:"center"});
+    const q=qrFor(qrText(pr));const n=q.getModuleCount();const size=86;const cell=size/n;const x0=RC-size/2,y0=M+36+nm.length*5.5+2;
+    doc.setFillColor(17,17,17);
+    for(let r=0;r<n;r++){let c0=-1;for(let k=0;k<=n;k++){const dark=k<n&&q.isDark(r,k);if(dark&&c0<0)c0=k;if(!dark&&c0>=0){doc.rect(x0+c0*cell,y0+r*cell,(k-c0)*cell+0.02,cell+0.02,"F");c0=-1}}}
+    doc.setFontSize(10);doc.setTextColor(80,80,80);
+    doc.text("Ler para ver o conteúdo desta prateleira",RC,y0+size+7,{align:"center"});
+    doc.setTextColor(120,120,120);doc.setFontSize(8);
+    doc.text(`${fullCode(pr)} · Armazém FMC · folha gerada a ${fmtDay(now())}`,W/2,H-8,{align:"center"});
+  });
+  const blob=doc.output("blob");
+  const name=prs.length===1?`folha-${fullCode(prs[0])}.pdf`:`folhas-prateleiras-FMC-${new Date().toISOString().slice(0,10)}.pdf`;
+  download(name,blob);toast("PDF pronto para imprimir");
+}
+
+/* ---------- CSV ---------- */
+$("#btnCsv").onclick=async()=>{
+  const cell=v=>{const s=String(v??"");return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+  const rows=[["Data","Produto","Prateleira","Para prateleira","Tipo","Variação","Fica na prateleira","Registado por","Entregue a","Motivo"]].concat(
+    regFiltered().map(m=>[fmtD(m.em),m.produtoNome,shelfLabel(m.prateleiraId,m.prateleiraCodigo),m.tipo==="transferencia"?shelfLabel(m.paraPrateleiraId,m.paraPrateleiraCodigo):"",TIPOS[m.tipo]||m.tipo,m.tipo==="transferencia"?m.qtd:m.delta,m.stockApos,nameOf(m.por),m.para?nameOf(m.para):"",m.motivo]));
+  const csv="﻿"+rows.map(r=>r.map(cell).join(";")).join("\r\n");
+  download(`registo-armazem-fmc-${new Date().toISOString().slice(0,10)}.csv`,csv);
+};
+
+/* ---------- tabs & deep links ---------- */
+function goTab(t){
+  S.tab=t;
+  document.querySelectorAll("#tabs button").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab===t?"true":"false"));
+  document.querySelectorAll(".tab").forEach(s=>s.hidden=s.id!==t);
+}
+window.goTab=goTab;
+$("#tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-tab]");if(!b)return;if(b.dataset.tab==="prat")S.shelf=null;goTab(b.dataset.tab);render()});
+$("#q").addEventListener("input",renderInv);
+["#fTipo","#fProd","#fPrat"].forEach(s=>$(s).addEventListener("change",renderReg));
+let pendingHash=(location.hash||"").slice(1);
+function applyHash(){
+  if(!pendingHash||!S.prats.length)return;
+  const code=pendingHash.replace(/^FMC-/i,"").toUpperCase();
+  const pr=S.prats.find(p=>(p.codigo||"").toUpperCase()===code);
+  pendingHash="";if(pr)openShelf(pr.id);
+}
+window.addEventListener("hashchange",()=>{pendingHash=(location.hash||"").slice(1);applyHash()});
+
+/* ---------- auth ---------- */
+function authMsg(code){
+  const m={
+    "auth/invalid-email":"Email inválido.",
+    "auth/user-disabled":"Esta conta está desativada.",
+    "auth/user-not-found":"Não há conta com este email.",
+    "auth/wrong-password":"Palavra-passe incorreta.",
+    "auth/invalid-credential":"Email ou palavra-passe incorretos.",
+    "auth/too-many-requests":"Demasiadas tentativas. Tenta mais tarde.",
+    "auth/network-request-failed":"Sem ligação à rede."
+  };
+  return m[code]||("Não foi possível entrar ("+(code||"erro")+").");
+}
+$("#loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const email=$("#lemail").value.trim(),pass=$("#lpass").value;
+  const btn=$("#lbtn");$("#lerr").textContent="";btn.disabled=true;
+  try{await auth.signInWithEmailAndPassword(email,pass)}
+  catch(err){$("#lerr").textContent=authMsg(err.code);btn.disabled=false}
+});
+$("#lreset").addEventListener("click",async()=>{
+  const email=$("#lemail").value.trim();
+  if(!email){$("#lerr").textContent="Escreve o email primeiro.";return}
+  try{await auth.sendPasswordResetEmail(email);$("#lerr").style.color="var(--ok)";$("#lerr").textContent="Enviámos um email para redefinir a palavra-passe."}
+  catch(err){$("#lerr").style.color="";$("#lerr").textContent=authMsg(err.code)}
+});
+function showLogin(){$("#app").hidden=true;$("#login").hidden=false;$("#lbtn").disabled=false}
+
+auth.onAuthStateChanged(async u=>{
+  if(!u){showLogin();return}
+  $("#login").hidden=true;$("#app").hidden=false;
+  const ref=db.doc("users/"+u.uid);
+  let snap;
+  try{
+    snap=await ref.get();
+    if(!snap.exists){
+      await ref.set({nome:(u.displayName||"").trim()||(u.email||"").split("@")[0],email:u.email||"",role:"leitura",criadoEm:now()});
+      snap=await ref.get();
+    }
+  }catch(e){
+    $("#banner").hidden=false;$("#banner").textContent="Não foi possível carregar o teu perfil. Recarrega a página.";
+    return;
+  }
+  const data=snap.data()||{};
+  S.uid=u.uid;S.me=data;
+  S.owner=data.role==="owner";
+  S.role=(data.role==="owner"||data.role==="admin")?"admin":(data.role==="requisitante"?"requisitante":"leitura");
+  const lab=S.owner?"Dono · contagens":S.role==="admin"?"Administrador":S.role==="requisitante"?"Requisitante":"Só leitura";
+  $("#who").innerHTML=`<span class="sub">${esc(data.nome||u.email||"")}</span><span class="chip ${S.role==="admin"?"admin":S.role==="requisitante"?"req":""}">${esc(lab)}</span><button class="btn small" id="btnOut">Sair</button>`;
+  $("#btnOut").onclick=()=>auth.signOut();
+  startListeners();
+});
+
+function startListeners(){
+  if(S.booted)return;S.booted=true;
+  const ban=$("#banner");
+  const onErr=e=>{if(e&&(e.code==="unavailable"||e.code==="permission-denied")){ban.hidden=false;ban.textContent="Ligação ou permissões em falta. Recarrega a página."}};
+  db.collection("prateleiras").onSnapshot(s=>{S.prats=s.docs.map(d=>({id:d.id,...d.data()}));render();applyHash()},onErr);
+  db.collection("produtos").onSnapshot(s=>{S.produtos=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
+  db.collection("movimentos").orderBy("em","desc").limit(500).onSnapshot(s=>{S.movs=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
+  db.collection("decisoes").onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());S.decisoes=o;render()},onErr);
+  db.collection("users").onSnapshot(s=>{S.names={};S.users=s.docs.map(d=>{const x={id:d.id,...d.data()};S.names[d.id]={name:x.nome||x.email||""};return x});render()},()=>{});
+  db.doc("config/etiqueta").onSnapshot(d=>{S.cfg=d.exists?d.data():{}},()=>{});
+  if(S.role==="admin"){
+    db.collection("pedidos").onSnapshot(s=>{S.pedidos=s.docs.map(d=>({uid:d.id,...d.data()}));render()},onErr);
+  }else{
+    db.doc("pedidos/"+S.uid).onSnapshot(d=>{S.pedidos=d.exists?[{uid:d.id,...d.data()}]:[];render()},()=>{});
+  }
+}
+</script>
+</body></html>
